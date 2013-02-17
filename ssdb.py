@@ -66,7 +66,7 @@ class SSDB(object):
         for cmd in commands:
             setattr(self, cmd, functools.partial(self.operation, cmd, ))
     def parse(self, rbuffer):
-
+        pass
 
     def operation(self, cmd, *args):
         sbuffer = [cmd]
