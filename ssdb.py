@@ -1,28 +1,19 @@
 #!/usr/bin/env python
 
 import socket, os, sys, asynchat, functools
+from cStringIO import StringIO
 
 class SSDBConn(asynchat.async_chat):
-    def __init__(self, sock, *args, **kwargs):
-        pass
+    result = []
+    def collect_incoming_data(self, data):
+        self.incoming.append(data)
+
+    def found_terminator(self):
+        if isinstance(self.terminator, int):
+            result.append(self._get_data())
 
 DEBUG = True
 NL = '\n'
-
-def xslice(s, a, b=None):
-    if b is None:
-        a, b = 0, a
-    if isinstance(a, (str, unicode)):
-        x = s.find(a)
-    elif isinstance(a, (int, float)):
-        x = int(a)
-    if isinstance(b, (str, unicode)):
-        y = s.find(b) + len(b)
-    elif isinstance(b, (int, float)):
-        y = int(b)
-    if x==-1 or y==-1:
-        return None
-    return s[x:y], y
 
 class SSDB(object):
     addr = None
@@ -65,8 +56,21 @@ class SSDB(object):
         'zdecr', 'zdel', 'zget', 'zincr', 'zkeys', 'zlist', 'zrscan', 'zscan', 'zset', 'zsize']
         for cmd in commands:
             setattr(self, cmd, functools.partial(self.operation, cmd, ))
+
     def parse(self, rbuffer):
-        pass
+        result = []
+        cursor = 0
+        all_length = len(rbuffer)
+        while cursor < all_length:
+            c = rbuffer.find(NL)
+            if c==-1:
+                break
+            else:
+                x, y = cursor, c
+                r = rbuffer[cursor:c]
+                cursor = y + len(NL)
+                result.append(rbuffer[cursor:r])
+        return result
 
     def operation(self, cmd, *args):
         sbuffer = [cmd]
@@ -75,9 +79,18 @@ class SSDB(object):
         if DEBUG: print sbuffer
         bytes = self.sock.send(sbuffer)
         if DEBUG: print '%s: %sBytes' % (cmd, bytes)
-        rtn = self.sock.recv(self.RECV_BUFFER_SIZE)
+
+        loop = True
+        chunks = []
+        results = []
+
+        while loop:
+            s = self.sock.recv(self.RECV_BUFFER_SIZE)
+            if len(s) <= self.RECV_BUFFER_SIZE:
+                lrecv.append(s)
+
         print repr(rtn)
-        loop = True:
+        loop = True
         result = []
         cursor = 0
         while loop:
@@ -86,4 +99,5 @@ class SSDB(object):
 
 
 if __name__ == '__main__':
+    import readline, rlcompleter; readline.parse_and_bind("tab: complete")
     db = SSDB()
