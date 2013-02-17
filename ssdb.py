@@ -3,7 +3,12 @@
 import socket, os, sys, asynchat, functools
 from cStringIO import StringIO
 
+DEBUG = True
+NL = '\n'
+
+
 class SSDBConn(asynchat.async_chat):
+    debug = DEBUG
     result = []
     def collect_incoming_data(self, data):
         self.incoming.append(data)
@@ -11,9 +16,6 @@ class SSDBConn(asynchat.async_chat):
     def found_terminator(self):
         if isinstance(self.terminator, int):
             result.append(self._get_data())
-
-DEBUG = True
-NL = '\n'
 
 class SSDB(object):
     addr = None
@@ -46,7 +48,7 @@ class SSDB(object):
         self.addr = t
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.sock.connect(tuple(self.addr))
-        #self.conn = SSDBConn(self.sock)
+        self.conn = SSDBConn(self.sock)
 
         commands = ['get', 'set', 'del', 'incr', 'decr', 'keys', 'scan', 'rscan', 
         'multi_get', 'multi_set', 'multi_del', 
@@ -83,11 +85,14 @@ class SSDB(object):
         loop = True
         chunks = []
         results = []
+        cursor = (0, 0)
 
         while loop:
-            s = self.sock.recv(self.RECV_BUFFER_SIZE)
-            if len(s) <= self.RECV_BUFFER_SIZE:
-                lrecv.append(s)
+            chunks.append(self.sock.recv(self.RECV_BUFFER_SIZE))
+            # if len(s) < self.RECV_BUFFER_SIZE:
+            #     continue
+            # else:
+            c = chunks[cursor[0]].find()
 
         print repr(rtn)
         loop = True
