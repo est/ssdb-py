@@ -1,7 +1,7 @@
 ssdb-py
 =======
 
-Python binding for [SSDB/ZDB](https://github.com/ideawu/ssdb/blob/master/api/python/SSDB.py) based on asynchat
+Python bindings for [SSDB/ZDB](https://github.com/ideawu/ssdb/) based on asynchat
 
 Reference
 ---------
