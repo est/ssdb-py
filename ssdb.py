@@ -17,7 +17,7 @@ class SSDB(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.sock.connect((host, port))
-        
+
         commands = ['get', 'set', 'del', 'incr', 'decr', 'keys', 'scan', 'rscan', 
         'multi_get', 'multi_set', 'multi_del', 
         # hash
@@ -69,7 +69,11 @@ class SSDB(object):
                     continue
                 else:
                     data = incoming[spos:epos]
-                    results.append(str(data))
+                    if 'desc' in cmd or 'incr' in cmd:
+                        data = int(data)
+                    else:
+                        data = str(data)
+                    results.append()
                     term = RNL
                     spos = epos + len(term)
                     dbg( 'got value\t%r' % (results))
