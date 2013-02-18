@@ -6,6 +6,10 @@ from cStringIO import StringIO
 DEBUG = True
 NL = '\n'
 
+def dbg(*x):
+    if DEBUG:
+        print ' '.join(x)
+
 
 class SSDBConn(asynchat.async_chat):
     debug = DEBUG
@@ -64,54 +68,55 @@ class SSDB(object):
     def operation(self, cmd, *args):
         sbuffer = [cmd]
         sbuffer.extend(args)
-        sbuffer = NL.join(map(lambda x:'%d%s%s' % (len(x), NL, x), sbuffer)) + NL*2
-        if DEBUG: print sbuffer
+        sbuffer = NL.join(map(lambda x:'%d%s%s' % (len(str(x)), NL, x), sbuffer)) + NL*2
         bytes = self.sock.send(sbuffer)
-        if DEBUG: print '%s: %sBytes' % (cmd, bytes)
+        dbg('command `%s` sent %sBytes' % (cmd, bytes))
 
         incoming = bytearray() # the reading buffer
         results = [] # outcome results
-        pos = 0 # current reading cursor position relative to incoming
-        tlen = 0 # total data read
 
-        term_pos = True # assert there will be a term from the start
+        spos = 0 # start position relative to incoming
+        epos = 0 # end position   relative to incoming
 
-        eof  = False # EOF not found
-        term = NL # either str NL or length
+        RNL = NL # response new line
+        term = RNL # either str NL or length
+        need_more = True
 
-        while not eof:
-            print 'loop, %r, %r, %r, %r' % (term, pos, term_pos, results)
-            if pos>tlen or pos==tlen==0:
-                data = self.sock.recv(self.RECV_BUFFER_SIZE)
-                incoming.extend(data)
-                tlen += len(data)
+        while True:
+            if need_more:
+                incoming.extend(self.sock.recv(self.RECV_BUFFER_SIZE))
+            dbg('loop', repr(str(incoming)))
             if isinstance(term, str):
-                term_pos = incoming.find(term, pos)
-                if term_pos==-1:
-                    if pos:
-                        incoming = bytearray(incoming[pos:])
+                epos = incoming.find(term, spos)
+                if epos == -1:
+                    need_more = True
                     continue
-                elif term_pos==0:
-                    eof = True
+                elif epos == len(incoming)-1 :
                     break
-                elif term_pos>0:
-                    print 'loop, %r, %r, %r, %r' % (term, pos, term_pos, results)
-                    print repr(incoming)
-                    next_term = int(incoming[pos:term_pos]) # length of the value field
-                    pos += term_pos+len(term)
-                    term = next_term
+                elif epos > 0:
+                    dbg( 'try length\t%r[%s:%s] by %r' % (str(incoming), spos, epos, term))
+                    term = incoming[spos:epos]
+                    dbg( 'got length\t%r' % (str(term)))
+                    spos = epos + len(RNL)
+                    term = int(term)
             if isinstance(term, int):
-                if pos+term>tlen:
-                    print pos, term, tlen
-                    data = self.sock.recv(self.RECV_BUFFER_SIZE)
-                    incoming.extend(data)
-                    tlen += len(data)
+                epos = spos + term
+                dbg('try value\t%r[%s:%s] by %r' % (str(incoming), spos, epos, term))
+                if epos>len(incoming):
+                    need_more = True
                     continue
                 else:
-                    results.append(incoming[pos:pos+term])
-                    pos += term + len(NL)
-                    term = NL
-        return results
+                    data = incoming[spos:epos]
+                    results.append(str(data))
+                    term = RNL
+                    spos = epos + len(term)
+                    dbg( 'got value\t%r' % (results))
+                    need_more = False
+        if results[0] == 'ok':
+            r = results[1:]
+            return r[0] if len(r)==1 else r
+        else:
+            raise Exception(results[0])
 
 
 
