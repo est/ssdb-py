@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import socket, os, sys, asynchat, functools, time
-from cStringIO import StringIO
+import socket, functools
 
 DEBUG = True
 NL = '\n'
@@ -9,17 +8,6 @@ NL = '\n'
 def dbg(*x):
     if DEBUG:
         print ' '.join(x)
-
-
-class SSDBConn(asynchat.async_chat):
-    debug = DEBUG
-    result = []
-    def collect_incoming_data(self, data):
-        self.incoming.append(data)
-
-    def found_terminator(self):
-        if isinstance(self.get_terminator(), int):
-            self.result.append(self._get_data())
 
 class SSDB(object):
     addr = None
@@ -78,7 +66,7 @@ class SSDB(object):
         spos = 0 # start position relative to incoming
         epos = 0 # end position   relative to incoming
 
-        RNL = NL # response new line
+        RNL = '\n' # response new line
         term = RNL # either str NL or length
         need_more = True
 
