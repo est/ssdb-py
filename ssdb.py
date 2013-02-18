@@ -13,37 +13,11 @@ class SSDB(object):
     addr = None
     RECV_BUFFER_SIZE = 4096
     SEND_BUFFER_SIZE = 4096
-    def __init__(self, *args, **kwargs):
-        """using either:
-         - ssdb://
-         - ip:port
-         - host='', port=''
-        """
+    def __init__(self, host='127.0.0.1', port=8888):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if len(args)==1:
-            t = args[0].partition('//'
-                )[2].rpartition('@'
-                )[2].rpartition(':')
-            self.addr = (
-                t[0].replace('[', '').replace(']', ''), 
-                t[2]
-            )
-        elif len(args) == 2:
-            self.addr = args
-        h, p = kwargs.get('host'), kwargs.get('port')
-        # handle default server address here
-        t = list(self.addr or ['127.0.0.1', 8888]) 
-        if h:
-            t[0] = h
-        if p:
-            t[1] = p
-        self.addr = t
-        # self.sock.setblocking(0)
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        # time.sleep(1)
-        self.sock.connect(tuple(self.addr))
-        # self.conn = SSDBConn(self.sock)
-
+        self.sock.connect((host, port))
+        
         commands = ['get', 'set', 'del', 'incr', 'decr', 'keys', 'scan', 'rscan', 
         'multi_get', 'multi_set', 'multi_del', 
         # hash
