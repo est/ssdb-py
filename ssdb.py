@@ -2,17 +2,13 @@
 
 import socket, functools
 
-DEBUG = True
-NL = '\n'
 
-def dbg(*x):
-    if DEBUG:
-        print ' '.join(x)
 
 class SSDB(object):
-    addr = None
+    DEBUG = False
     RECV_BUFFER_SIZE = 4096
     SEND_BUFFER_SIZE = 4096
+    NEWLINE = '\n'
     def __init__(self, host='127.0.0.1', port=8888):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -27,12 +23,19 @@ class SSDB(object):
         for cmd in commands:
             setattr(self, cmd, functools.partial(self.operation, cmd, ))
 
+    def dbg(self, *x):
+        if self.DEBUG:
+            print ' '.join(x)
+
     def operation(self, cmd, *args):
         sbuffer = [cmd]
         sbuffer.extend(args)
-        sbuffer = NL.join(map(lambda x:'%d%s%s' % (len(str(x)), NL, x), sbuffer)) + NL*2
+        sbuffer = self.NEWLINE.join( map(
+            lambda x:'%d%s%s' % (len(str(x)), 
+            self.NEWLINE, x), sbuffer
+        )) + self.NEWLINE*2
         bytes = self.sock.send(sbuffer)
-        dbg('command `%s` sent %sBytes' % (cmd, bytes))
+        self.dbg('command `%s` sent %sBytes' % (cmd, bytes))
 
         incoming = bytearray() # the reading buffer
         results = [] # outcome results
@@ -47,7 +50,7 @@ class SSDB(object):
         while True:
             if need_more:
                 incoming.extend(self.sock.recv(self.RECV_BUFFER_SIZE))
-            dbg('loop', repr(str(incoming)))
+            self.dbg('loop', repr(str(incoming)))
             if isinstance(term, str):
                 epos = incoming.find(term, spos)
                 if epos == -1:
@@ -56,27 +59,25 @@ class SSDB(object):
                 elif epos == len(incoming)-1 :
                     break
                 elif epos > 0:
-                    dbg( 'try length\t%r[%s:%s] by %r' % (str(incoming), spos, epos, term))
+                    self.dbg( 'try length\t%r[%s:%s] by %r' % (str(incoming), spos, epos, term))
                     term = incoming[spos:epos]
-                    dbg( 'got length\t%r' % (str(term)))
+                    self.dbg( 'got length\t%r' % (str(term)))
                     spos = epos + len(RNL)
                     term = int(term)
             if isinstance(term, int):
                 epos = spos + term
-                dbg('try value\t%r[%s:%s] by %r' % (str(incoming), spos, epos, term))
+                self.dbg('try value\t%r[%s:%s] by %r' % (str(incoming), spos, epos, term))
                 if epos>len(incoming):
                     need_more = True
                     continue
                 else:
-                    data = incoming[spos:epos]
-                    if 'desc' in cmd or 'incr' in cmd:
+                    data = str(incoming[spos:epos])
+                    if 'desc' in cmd or 'incr' in cmd and data.lower()!='ok':
                         data = int(data)
-                    else:
-                        data = str(data)
-                    results.append()
+                    results.append(data)
                     term = RNL
                     spos = epos + len(term)
-                    dbg( 'got value\t%r' % (results))
+                    self.dbg( 'got value\t%r' % (results))
                     need_more = False
         if results[0] == 'ok':
             r = results[1:]
